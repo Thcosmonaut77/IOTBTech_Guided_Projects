@@ -1,0 +1,63 @@
+# Terraform state and variables — never commit
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+terraform.tfvars
+*.auto.tfvars
+override.tf
+override_tofu.tf
+*_override.tf
+*_override.tofu.tf
+
+# Provider cache and local CLI config.
+#
+# NOTE: `.terraform*` would also match `.terraform.lock.hcl`, which MUST be
+# committed — it pins provider versions and checksums. Hence the explicit
+# negation immediately below. See docs/KNOWN-ISSUES.md KI-02.
+.terraform/
+.terraform.tfstate.lock.info
+.terraform.tfstate.backup
+
+!.terraform.lock.hcl
+
+# Credentials and keys — belt and braces alongside the patterns above
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+id_rsa*
+id_ed25519*
+known_hosts
+known_hosts.old
+.aws/
+.awscli/
+.netrc
+.env
+.env.*
+!.env.example
+
+# OS and editor noise
+.DS_Store
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.swp
+*~
+*.bak
+*.orig
+*.rej
+.idea/
+.vscode/
+!.vscode/extensions.json
+
+# Local artifacts from the deployment docs
+.master_ip
+tfplan
+tfplan.txt
+bootstrap.log
+setup-ansible.log

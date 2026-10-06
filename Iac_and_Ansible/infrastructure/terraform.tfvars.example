@@ -1,0 +1,80 @@
+# Copy to terraform.tfvars and edit. NEVER commit terraform.tfvars.
+#
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# Every value below is required unless marked "optional". See variables.tf for the
+# authoritative list and README.md § Configuration Reference for the full table.
+
+# ─── Required ─────────────────────────────────────────────────────────────────
+
+# AWS region. Must match the backend region in providers.tf, and must have the
+# Canonical Ubuntu SSM parameter available. See docs/DEPLOYMENT.md § Pre-flight.
+region = "YOUR_REGION"
+
+# VPC CIDR. Doubles as the intra-VPC SSH source range in the security group, so
+# widening it widens who can SSH between nodes.
+vpc_cidr = "YOUR_VPC_CIDR"
+
+# Single public subnet. /24 leaves room to grow the VPC without resizing.
+public_subnet_cidr = "YOUR_PUBLIC_SUBNET_CIDR"
+
+# EC2 instance type for all three nodes.
+# t3.micro is the smallest general-purpose type and is billed per instance-hour,
+# not per vCPU. See docs/COST.md.
+instance_type = "YOUR_INSTANCE_TYPE"
+
+# Prefix for every Name tag. Also used for the security group name.
+project = "YOUR_PROJECT_NAME"
+
+# YOUR OWN public IP as a /32. This is the only external source permitted to reach
+# SSH/22 or HTTP/80 on any node (the security group is shared, so it covers workers too).
+#
+#   curl -s https://checkip.amazonaws.com
+#
+# If this stops matching your current IP you will be locked out until you update
+# it and re-apply. Do not widen it to 0.0.0.0/0. See SECURITY.md § S11.
+ssh_cidr = "YOUR_IP"
+
+# ─── Optional ─────────────────────────────────────────────────────────────────
+
+# Public key uploaded to the EC2 key pair. Must exist before `terraform plan`.
+#   ssh-keygen -t ed25519 -a 100 -f ~/.ssh/id_ed25519
+# NOTE: the private key must NOT have a passphrase — setup-ansible.sh cannot
+# answer a prompt. See docs/DEPLOYMENT.md § Phase 0.
+public_key_file = "YOUR_PUB_KEY_FILE_PATH"
+
+# Matching private key. Used only by the local-exec provisioner and by
+# setup-ansible.sh. Never uploaded to AWS and never stored in Terraform state.
+private_key_file = "YOUR_PRIVATE_KEY_FILE_PATH"
+
+# Login user on the instances.
+#   ubuntu    → Canonical Ubuntu AMIs (what this stack uses)
+#   ec2-user  → Amazon Linux AMIs
+ssh_user = "YOUR_SSH_USER"
+
+# ─── Not used ─────────────────────────────────────────────────────────────────
+
+# There is deliberately no `key` variable. An earlier version declared one and nothing
+# read it — a backend block cannot reference var.*, so the state key is hard-coded in
+# providers.tf. See docs/KNOWN-ISSUES.md § KI-04.
+
+# ─── For reference: the defaults these override ──────────────────────────────
+#
+# region             (no default — required)
+# vpc_cidr           (no default — required)
+# public_subnet_cidr (no default — required)
+# instance_type      (no default — required)
+# project            (no default — required)
+# ssh_cidr           (no default — required)
+# public_key_file    = "~/.ssh/id_ed25519.pub"
+# private_key_file   = "~/.ssh/id_ed25519"
+# ssh_user           = "ubuntu"
+#
+# The remote_state/ module takes no variables and has no .tfvars. Its bucket name and
+# region are literals in remote_state/main.tf:
+#   bucket = "cloud77-terraform-state"
+#   region = "eu-north-1"
+# The same two strings are hard-coded in the backend block in providers.tf. If you
+# change `project` above, you must change all three by hand. A backend block cannot
+# read var.*, so no amount of parameterising remote_state/ would wire them together.
+# See docs/KNOWN-ISSUES.md § KI-10.
