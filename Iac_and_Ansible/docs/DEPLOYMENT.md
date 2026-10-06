@@ -740,7 +740,8 @@ change is in-place. Then re-run the playbook if you were disconnected mid-sessio
 
 ## Full teardown
 
-Two `destroy` runs are required, in this order.
+Two `destroy` runs are required, in this order — plus one `apply` in between to empty the
+bucket.
 
 ### 1. Destroy the fleet
 
@@ -763,50 +764,32 @@ Destroy complete! Resources: 11 destroyed.
 
 ### 2. Destroy the state bucket (optional)
 
-Only if you want a clean slate:
+Only if you want a clean slate. The bucket ships with `force_destroy = false`, so `destroy`
+fails with `BucketNotEmpty` while it still holds state objects. Flipping the flag is the
+whole procedure — **no AWS CLI, no manual version purge**:
 
 ```bash
-cd remote_state
-terraform destroy
+# 1. remote_state/main.tf:  force_destroy = false  →  true
+# 2. Record the flag. Deletes nothing; this is just where you watch the change.
+terraform -chdir=remote_state apply -auto-approve
+# 3. The provider purges every object version and delete marker, then deletes the bucket.
+terraform -chdir=remote_state destroy -auto-approve
+# 4. remote_state/main.tf:  back to force_destroy = false
 ```
 
-> ⚠️ `force_destroy = false` on the bucket. If it still holds state versions, `destroy`
-> fails with `BucketNotEmpty`. You must empty it first. Versioning is **enabled**, so
-> `aws s3 rm --recursive` alone is not enough: it only deletes current versions and
-> leaves delete markers and older versions behind, so the bucket is still non-empty.
-> Purge every version explicitly — this needs only `aws` and POSIX tools, **not `jq`**:
+> Step 2 is not the purge. It writes the flag to state so that step 3 plans as a pure
+> deletion. The emptying happens *inside* the destroy, in the provider's delete call.
 >
-> ```bash
-> REGION=$(terraform output -raw region)
-> BUCKET=$(terraform output -raw bucket_name)
-> for kind in Versions DeleteMarkers; do
->   aws s3api list-object-versions --bucket "$BUCKET" --region "$REGION" \
->     --query "$kind[].[Key,VersionId]" --output text \
->   | tr '\t' '\n' \
->   | paste - - \
->   | while read -r key vid; do
->       [ -n "$vid" ] || continue
->       aws s3api delete-object --bucket "$BUCKET" --region "$REGION" \
->         --key "$key" --version-id "$vid"
->     done
-> done
-> aws s3 rm "s3://$BUCKET/" --recursive   # current versions, if any remain
-> terraform destroy
-> ```
+> **This deletes all state history, permanently and with no undo.** Versioning is what you
+> would normally roll back with, and step 3 deletes it too. Do not run it unless you are
+> certain the fleet from step 1 is really being retired.
 >
-> If `terraform output -raw bucket_name` returns nothing, the `remote_state` state file has
-> already been partly destroyed. Use the literal bucket name from `providers.tf`
-> (`cloud77-terraform-state`) and the same `--region` instead.
->
-> Keys containing spaces or newlines would break this `read`-based loop. State keys here are
-> always `terraform.tfstate` and `terraform.tfstate.tflock`, so that does not arise.
->
-> **This deletes all state history.** Do not run it unless you are certain.
+> To deploy again afterwards, re-run the bootstrap first — `terraform -chdir=infrastructure`
+> fails with `NoSuchBucket` until the bucket exists again. See [Phase 1](#phase-1--bootstrap-the-state-bucket).
 
 ### 3. Tidy up
 
 ```bash
-cd ..
 rm -f .master_ip
 rm -f infrastructure/tfplan infrastructure/tfplan.txt
 ```
@@ -826,9 +809,11 @@ aws ec2 describe-key-pairs --query 'KeyPairs[?KeyName==`Cloud7-ansible`].KeyName
 # (empty)
 ```
 
-**Local-only leftovers:** the S3 backend's cached configuration in `.terraform/` remains,
-and `remote_state/terraform.tfstate` remains. Both are git-ignored. See
-[KI-06](KNOWN-ISSUES.md#ki-06) for why the bootstrap state matters.
+**Local-only leftovers:** the S3 backend's cached configuration in `infrastructure/.terraform/`
+remains and still points at the deleted bucket — `terraform -chdir=infrastructure` fails with
+`NoSuchBucket` until the bootstrap is re-run. `remote_state/terraform.tfstate` also remains,
+now empty. Both are git-ignored. See [KI-06](KNOWN-ISSUES.md#ki-06) for why the bootstrap
+state matters.
 
 ---
 

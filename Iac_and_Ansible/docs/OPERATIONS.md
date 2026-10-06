@@ -631,44 +631,32 @@ terraform -chdir=infrastructure destroy
 
 # 2. The state bucket — only if you want a clean slate.
 #    force_destroy = false means this FAILS with BucketNotEmpty while the bucket
-#    still holds state versions. Versioning is enabled, so 'aws s3 rm --recursive'
-#    is NOT sufficient: it removes only current versions and leaves the older
-#    ones and delete markers behind. Purge every version first. This permanently
-#    deletes all state history.
-cd remote_state
-REGION=$(terraform output -raw region)
-BUCKET=$(terraform output -raw bucket_name)
-aws s3api list-object-versions --bucket "$BUCKET" --region "$REGION" \
-  --query 'Versions[].[Key,VersionId]' --output text \
-| tr '\t' '\n' \
-| paste - - \
-| while read -r key vid; do
-    [ -n "$vid" ] || continue
-    aws s3api delete-object --bucket "$BUCKET" --region "$REGION" \
-      --key "$key" --version-id "$vid"
-  done
-aws s3api list-object-versions --bucket "$BUCKET" --region "$REGION" \
-  --query 'DeleteMarkers[].[Key,VersionId]' --output text \
-| tr '\t' '\n' \
-| paste - - \
-| while read -r key vid; do
-    [ -n "$vid" ] || continue
-    aws s3api delete-object --bucket "$BUCKET" --region "$REGION" \
-      --key "$key" --version-id "$vid"
-  done
-aws s3 rm "s3://$BUCKET/" --recursive
-terraform destroy
+#    still holds state objects. Versioning is enabled, so deleting current
+#    objects is not enough: older versions and delete markers keep the bucket
+#    non-empty. Setting force_destroy = true makes the provider purge all of
+#    them during the destroy itself. No AWS CLI, no manual version purge.
+#
+#    a. remote_state/main.tf:  force_destroy = false  →  true
+terraform -chdir=remote_state apply -auto-approve      # records the flag; deletes nothing
+terraform -chdir=remote_state destroy -auto-approve    # purges every version, then deletes the bucket
+#
+#    b. remote_state/main.tf:  back to force_destroy = false
 ```
 
-> The version purge above uses only `aws` + POSIX tools — **no `jq`**. If
-> `terraform output -raw bucket_name` comes back empty, the `remote_state` state file has
-> already been partially destroyed; fall back to the literal bucket name from
-> `providers.tf` (`cloud77-terraform-state`) and the same `--region`.
+> The `apply` is not the purge — it writes the flag to state so the destroy plans as a pure
+> deletion. The emptying happens inside the destroy.
+>
+> Step 2 **permanently deletes all state history**, versions and delete markers included.
+> There is no rollback once the bucket is gone. This is the only irreversible operation in
+> the whole runbook that is not recoverable from S3 versioning, because it deletes the
+> versioning history itself.
+>
+> After step 2, `terraform -chdir=infrastructure` fails with `NoSuchBucket` until the bucket
+> is recreated by the bootstrap in [Phase 1](DEPLOYMENT.md#phase-1--bootstrap-the-state-bucket).
 
 Confirm nothing leaked, then tidy up locally:
 
 ```bash
-cd ..
 aws ec2 describe-vpcs --filters "Name=tag:Name,Values=Cloud7-vpc" \
   --query 'Vpcs[].VpcId' --output text     # expect empty
 rm -f .master_ip

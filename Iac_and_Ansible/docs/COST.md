@@ -250,16 +250,19 @@ work versus $42/month.
 
 ```bash
 terraform -chdir=infrastructure destroy
-# Destroying the state bucket needs its versions purged first — see
-# OPERATIONS.md § Teardown for the exact commands.
-cd remote_state && terraform destroy
+# Destroying the state bucket needs force_destroy = true first — see
+# OPERATIONS.md § Teardown.
+terraform -chdir=remote_state apply -auto-approve      # after flipping the flag
+terraform -chdir=remote_state destroy -auto-approve
 # ... later ...
-cd remote_state && terraform apply && cd .. && terraform apply && ansible-playbook docker.yml
+terraform -chdir=remote_state init && terraform -chdir=remote_state apply
+terraform -chdir=infrastructure apply && ansible-playbook docker.yml
 ```
 
-> ⚠️ `force_destroy = false` plus enabled versioning means `terraform destroy` in
-> `remote_state/` fails with `BucketNotEmpty` unless you purge all versions first.
-> `aws s3 rm --recursive` alone does not do it.
+> ⚠️ `force_destroy = false` is the committed default, so `terraform destroy` in
+> `remote_state/` fails with `BucketNotEmpty` until you flip it to `true`. That flip *is* the
+> teardown — the provider purges every object version and delete marker itself, so no AWS CLI
+> purge loop is involved.
 
 ### 4. Move to `us-east-1` — saves up to $9.34/mo via free tier
 

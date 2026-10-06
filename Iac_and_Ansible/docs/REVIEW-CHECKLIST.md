@@ -345,7 +345,8 @@ Full analysis is in [SECURITY.md](SECURITY.md). Check specifically:
 - [ ] Is state recovery documented? (Yes, including S3 version rollback, which is the correct
       mechanism given versioning is enabled.)
 - [ ] Is teardown documented — including the two-step requirement and the `force_destroy`
-      trap? (Yes. Both are easy to get wrong and both are covered.)
+      flag that has to be flipped before the bucket will delete? (Yes. Both are easy to get
+      wrong and both are covered, and step 2 needs no AWS CLI.)
 - [ ] Is key rotation documented, including the fact that it replaces all three instances?
       (Yes, with the reason.)
 - [ ] What happens if the operator's IP changes? (Locked out until `ssh_cidr` is updated.

@@ -755,7 +755,7 @@ Credit where it is due — several of these are better than the common tutorial 
 | SSH ingress restricted to a `/32` | Correct. The single most effective SSH control. |
 | Key-based auth only | No password rules are configured, and Ubuntu Cloud Images disable root SSH by default. |
 | State encrypted at rest and in transit | `encrypt = true` on the backend; SSE-S3 on the bucket. |
-| State bucket fully private | All four public-access-block flags set; versioning on; `force_destroy = false` protects against accidental data loss. |
+| State bucket fully private | All four public-access-block flags set; versioning on; `force_destroy = false` protects against accidental data loss — and makes the purge a deliberate edit rather than a command someone runs by reflex. |
 | S3-native state locking | `use_lockfile = true`. Prevents the concurrent-apply corruption that a `terraform.tfstate` on a laptop invites. |
 | Private key permissions handled carefully | `mktemp -d`, `chmod 700`/`600`, `ssh-keygen -y` validation, `EXIT` trap cleanup. Genuinely well done. |
 | SSH key never stored in Terraform state | Terraform reads only the *public* key. The private key never reaches an AWS API. |

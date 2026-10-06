@@ -18,7 +18,7 @@ provider "aws" {
 # backend config cannot enforce. See docs/KNOWN-ISSUES.md § KI-10.
 resource "aws_s3_bucket" "tf_state" {
   bucket        = "cloud77-terraform-state"
-  force_destroy = false
+  force_destroy = false # True to destroy. See docs/DEPLOYMENT.md § Full teardown.
 }
 
 resource "aws_s3_bucket_versioning" "tf_state" {
