@@ -1,4 +1,4 @@
-# IOTB Tech Projects
+# IOTB Tech Guided Projects
 
 A collection of infrastructure and automation projects, built and documented as working
 deployments rather than sketches. Each project is self-contained in its own top-level
