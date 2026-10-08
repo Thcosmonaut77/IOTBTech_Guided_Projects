@@ -20,7 +20,7 @@ override_tofu.tf
 .terraform.tfstate.lock.info
 .terraform.tfstate.backup
 
-!.terraform.lock.hcl
+.terraform.lock.hcl
 
 # Credentials and keys — belt and braces alongside the patterns above
 *.pem
