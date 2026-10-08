@@ -371,6 +371,7 @@ project            = "Cloud7"
 ssh_cidr           = "<your-public-ip>/32"   # find yours: https://checkip.amazonaws.com
 public_key_file    = "~/.ssh/id_ed25519.pub"
 private_key_file   = "~/.ssh/id_ed25519"
+ssh_user           = "ubuntu"
 ```
 
 > `ssh_cidr` is marked `sensitive = true` in `variables.tf` and `terraform.tfvars` is
@@ -461,7 +462,7 @@ All variables live in [`variables.tf`](infrastructure/variables.tf). Values come
 | `ssh_cidr` | `string` | — | ✅ `sensitive` | Your own `/32` address. The only external source allowed to reach SSH/22 or HTTP/80 — and because the security group is shared, it covers the workers as well as the master. |
 | `public_key_file` | `string` | `~/.ssh/id_ed25519.pub` | ❌ | Passed to `file()` and uploaded to the EC2 key pair. |
 | `private_key_file` | `string` | `~/.ssh/id_ed25519` | ❌ | Used by the `local-exec` provisioner and by `setup-ansible.sh` for SSH. |
-| `ssh_user` | `string` | `ubuntu` | ❌ | Login user. Correct for Canonical Ubuntu AMIs; `ec2-user` for Amazon Linux. |
+| `ssh_user` | `string` | — | ✅ | Login user. `ubuntu` for Canonical Ubuntu AMIs (what this stack uses); `ec2-user` for Amazon Linux. No default — set it explicitly in `terraform.tfvars`. |
 
 There is deliberately **no** `key` variable. An earlier version declared one and never used
 it, which made it look like the backend object key was configurable when it is hard-coded in
@@ -505,7 +506,7 @@ terraform -chdir=infrastructure output -raw master_public_ip
 ### Terraform-side
 
 ```bash
-terraform fmt -check -recursive   # currently reports 3 unformatted files — see KI-11
+terraform fmt -check -recursive   # no output = all formatted (KI-11 fixed)
 terraform -chdir=infrastructure validate                # Success!
 terraform -chdir=infrastructure state list              # 11 managed resources
 terraform -chdir=infrastructure plan                    # "No changes" = converged

@@ -14,7 +14,8 @@ variable "public_subnet_cidr" {
 }
 
 variable "instance_type" {
-  type = string
+  description = "Instance type"
+  type        = string
 }
 
 variable "public_key_file" {
@@ -32,7 +33,6 @@ variable "private_key_file" {
 variable "ssh_user" {
   description = "SSH user for the Ubuntu instances"
   type        = string
-  default     = "ubuntu"
 }
 
 variable "ssh_cidr" {

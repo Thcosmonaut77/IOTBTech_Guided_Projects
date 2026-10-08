@@ -35,6 +35,11 @@ project = "YOUR_PROJECT_NAME"
 # it and re-apply. Do not widen it to 0.0.0.0/0. See SECURITY.md § S11.
 ssh_cidr = "YOUR_IP"
 
+# Login user on the instances. Must match the AMI — no default in variables.tf.
+#   ubuntu    → Canonical Ubuntu AMIs (what this stack uses)
+#   ec2-user  → Amazon Linux AMIs
+ssh_user = "YOUR_SSH_USER"
+
 # ─── Optional ─────────────────────────────────────────────────────────────────
 
 # Public key uploaded to the EC2 key pair. Must exist before `terraform plan`.
@@ -46,11 +51,6 @@ public_key_file = "YOUR_PUB_KEY_FILE_PATH"
 # Matching private key. Used only by the local-exec provisioner and by
 # setup-ansible.sh. Never uploaded to AWS and never stored in Terraform state.
 private_key_file = "YOUR_PRIVATE_KEY_FILE_PATH"
-
-# Login user on the instances.
-#   ubuntu    → Canonical Ubuntu AMIs (what this stack uses)
-#   ec2-user  → Amazon Linux AMIs
-ssh_user = "YOUR_SSH_USER"
 
 # ─── Not used ─────────────────────────────────────────────────────────────────
 
@@ -66,6 +66,7 @@ ssh_user = "YOUR_SSH_USER"
 # instance_type      (no default — required)
 # project            (no default — required)
 # ssh_cidr           (no default — required)
+# ssh_user           (no default — required)
 # public_key_file    = "~/.ssh/id_ed25519.pub"
 # private_key_file   = "~/.ssh/id_ed25519"
 # ssh_user           = "ubuntu"

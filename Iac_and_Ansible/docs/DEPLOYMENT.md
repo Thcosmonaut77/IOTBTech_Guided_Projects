@@ -255,6 +255,7 @@ project            = "Cloud7"
 ssh_cidr           = "203.0.113.10/32"   # YOUR current public IP
 public_key_file    = "~/.ssh/id_ed25519.pub"
 private_key_file   = "~/.ssh/id_ed25519"
+ssh_user           = "ubuntu"   # must match the AMI: ubuntu for Canonical, ec2-user for Amazon Linux
 ```
 
 Discover your current public IP:
