@@ -1,0 +1,61 @@
+# Normalise line endings in the repository, not in the working tree.
+#
+# WHY THIS FILE EXISTS
+#
+# On Windows, `core.autocrlf=true` (the Git for Windows default) rewrites LF to CRLF in
+# the working tree. That silently breaks this repository in CI and on any Linux/macOS
+# machine that clones it:
+#
+#   setup-ansible.sh:1: /usr/bin/env bash^M: bad interpreter: No such file or directory
+#
+# The script is invoked by Terraform's local-exec provisioner, so a CRLF shebang means
+# `terraform apply` fails at the provisioning step — after the EC2 instances have already
+# been created and billed.
+#
+# Declaring the line endings explicitly makes the repository correct regardless of each
+# contributor's core.autocrlf setting.
+
+# ── Default: text files, LF in the repo, native in the working tree ───────────
+* text=auto eol=lf
+
+# ── Must be LF in the working tree too, or they break on Linux ───────────────
+
+# Bash scripts. A CRLF shebang or a stray \r in a variable assignment produces
+# errors that are extremely hard to diagnose from the Terraform output.
+*.sh      text eol=lf
+setup-ansible.sh text eol=lf
+
+# Terraform. Terraform is whitespace-sensitive in heredocs and provisioner commands.
+*.tf      text eol=lf
+*.tfvars  text eol=lf
+*.tftest  text eol=lf
+.terraform.lock.hcl text eol=lf
+
+# Ansible. YAML forbids tabs for indentation and CRLF breaks `ansible-lint` diffs.
+*.yml     text eol=lf
+*.yaml    text eol=lf
+
+# GitHub Actions. The runner always uses LF; a CRLF workflow file fails to parse.
+.github/** text eol=lf
+
+# Makefiles. A trailing \r after a recipe line makes the shell try to run "echo hello\r".
+Makefile  text eol=lf
+*.mk      text eol=lf
+
+# Documentation and metadata.
+*.md      text eol=lf
+LICENSE   text eol=lf
+.gitignore       text eol=lf
+.gitattributes   text eol=lf
+
+# ── Binary: never touch ──────────────────────────────────────────────────────
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.ico     binary
+*.pdf     binary
+*.zip     binary
+*.gz      binary
+*.tfstate binary
+*.tfplan  binary

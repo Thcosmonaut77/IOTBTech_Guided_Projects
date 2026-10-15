@@ -1,0 +1,19 @@
+---
+# Ansible collection dependencies for docker.yml.
+#
+# setup-ansible.sh runs:
+#   ansible-galaxy collection install -r requirements.yml
+#
+# This is explicit rather than implicit. Ubuntu's `ansible` package bundles
+# community.docker, but that is an accident of packaging — a leaner base image, a
+# pip-installed ansible-core, or an apt upgrade can remove it, and the playbook then
+# fails at the container task and nowhere earlier.
+#
+# The upper bound is not arbitrary. community.docker 4.x requires ansible-core >= 2.17,
+# but Ubuntu 24.04 (noble) ships ansible-core 2.16. Pinning to <4.0.0 keeps the install
+# working on the image this stack actually builds.
+#
+# See docs/KNOWN-ISSUES.md P2 and P13.
+collections:
+  - name: community.docker
+    version: ">=3.4.0,<4.0.0"
