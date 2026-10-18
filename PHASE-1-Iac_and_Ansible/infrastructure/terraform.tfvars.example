@@ -75,7 +75,7 @@ private_key_file = "YOUR_PRIVATE_KEY_FILE_PATH"
 # region are literals in remote_state/main.tf:
 #   bucket = "cloud77-terraform-state"
 #   region = "eu-north-1"
-# The same two strings are hard-coded in the backend block in providers.tf. If you
-# change `project` above, you must change all three by hand. A backend block cannot
-# read var.*, so no amount of parameterising remote_state/ would wire them together.
+# The same two strings are hard-coded in the backend block in providers.tf, and neither is
+# derived from `project`. A backend block cannot read var.*, so nothing can wire the two
+# files together — change the name in both by hand.
 # See docs/KNOWN-ISSUES.md § KI-10.

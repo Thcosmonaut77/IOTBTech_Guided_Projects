@@ -104,18 +104,12 @@ Two things that trap is easy to misread:
 
 - **Editing `docker.yml` re-copies it, but does not run it.** Stage 3 is still a manual
   `ansible-playbook docker.yml` on the master, by design. Apply, then run the playbook.
-- **`make check-playbook-sync` no longer exists.** There is nothing to drift any more, so the
-  target was removed rather than left as a check that cannot fail.
+- **The playbook-drift check no longer exists.** There is nothing to drift any more, so the
+  check was removed rather than left as one that cannot fail.
 
 ---
 
 ## Before you open a PR
-
-```bash
-make check
-```
-
-Or individually:
 
 ```bash
 terraform fmt -check -recursive                       # must be silent
@@ -134,8 +128,8 @@ git diff --cached | grep -nE '(arn:aws|[0-9]{12})'
 git ls-files | grep -Ei 'tfvars|tfstate|id_ed25519|id_rsa|\.pem'   # must be empty
 ```
 
-There is no CI in this repository, so these checks are yours to run. `make check` runs the
-Terraform and Bash ones. See [Checks](#checks) for the full list.
+There is no CI in this repository, so these checks are yours to run. See
+[Checks](#checks) for the full list.
 
 ---
 
@@ -143,7 +137,7 @@ Terraform and Bash ones. See [Checks](#checks) for the full list.
 
 ### Terraform
 
-- **Run `terraform fmt`.** Nothing enforces this for you; `make fmt-check` will fail if you skip it.
+- **Run `terraform fmt`.** Nothing enforces this for you; `terraform fmt -check -recursive` will fail if you skip it.
 - One concern per file: `networking`, `firewall`, `compute`, `ansible`, `outputs`,
   `variables`, `providers`.
 - `description` on every variable, every output, every security-group rule.
@@ -202,8 +196,7 @@ narrative of how the design changed.
 | `refactor` | No behaviour change |
 | `security` | A finding from [SECURITY.md](docs/SECURITY.md) |
 The `test` type below is a historical convention; there are no test or CI scripts to run in
-this repository. Anything caught by `make check` is already covered by `fix` or `docs` in
-practice.
+this repository. The pre-PR checks below are already covered by `fix` or `docs` in practice.
 | `chore` | Tooling, dependencies, `.gitignore` |
 
 Examples:
@@ -244,7 +237,7 @@ as the checklist to run before you share a change.
 | Playbook lint | `ansible-lint infrastructure/docker.yml` and `ansible-playbook infrastructure/docker.yml --syntax-check` |
 | Secret hygiene | see [Before you open a PR](#before-you-open-a-pr) |
 
-`make check` runs the Terraform and Bash rows in one go.
+Run the Terraform and Bash rows above in one go before you share a change.
 
 > The playbook-drift check that used to live here has been removed. It asserted that the
 > tracked `docker.yml` matched the copy embedded in `setup-ansible.sh`; that duplication is
@@ -298,29 +291,38 @@ pip install ansible
 ### Common tasks
 
 ```bash
-make help          # list targets
-make check         # fmt + validate + shellcheck + ansible-lint
-make fmt           # rewrite files with terraform fmt
-make validate      # validate both root modules, no backend needed
-make plan          # plan the fleet
-make apply         # apply the fleet (COSTS MONEY)
-make bootstrap     # create the S3 state bucket
-make ssh           # SSH to the master
-make workers       # list worker private IPs
-make playbook      # run docker.yml on the master
-make check-playbook # --check --diff against the master
-make lint          # tflint + shellcheck + ansible-lint
-make clean         # remove local artifacts (never touches AWS)
+terraform fmt -recursive                        # rewrite files with terraform fmt
+terraform -chdir=infrastructure validate        # validate the main root module
+terraform -chdir=remote_state validate          # validate the state-bucket module
+terraform -chdir=infrastructure plan            # plan the fleet
+terraform -chdir=infrastructure apply           # apply the fleet (COSTS MONEY)
+
+# State bucket (the remote_state module has local state):
+terraform -chdir=remote_state init
+terraform -chdir=remote_state apply
+
+# SSH to the master and list the workers:
+ssh -i ~/.ssh/id_ed25519 ubuntu@$(terraform -chdir=infrastructure output -raw master_public_ip)
+terraform -chdir=infrastructure output -json worker_public_ip
+
+# Run the playbook (Stage 3):
+ssh -i ~/.ssh/id_ed25519 ubuntu@$(terraform -chdir=infrastructure output -raw master_public_ip) \
+  'cd ~/ansible && ansible-playbook docker.yml'
+
+# Lint:
+shellcheck infrastructure/setup-ansible.sh
+ansible-lint infrastructure/docker.yml
 ```
 
-`make apply` and `make destroy` are **not** wrapped in a confirmation prompt beyond
+`terraform apply` and `terraform destroy` are **not** wrapped in a confirmation prompt beyond
 Terraform's own. Do not put them in an alias.
 
 ### Testing a change without a full deploy
 
 ```bash
 # 1. Validate and lint
-make check
+terraform fmt -check -recursive
+terraform -chdir=infrastructure validate
 
 # 2. See what would change
 terraform -chdir=infrastructure plan -out=tfplan

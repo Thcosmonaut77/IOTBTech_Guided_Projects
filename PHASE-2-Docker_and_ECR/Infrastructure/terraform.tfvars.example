@@ -1,0 +1,91 @@
+# Copy to terraform.tfvars and edit. NEVER commit terraform.tfvars.
+#
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# See variables.tf for the authoritative list and README.md § Configuration
+# Reference for the full table.
+
+# ─── Required ─────────────────────────────────────────────────────────────────
+
+# AWS region. Must match the backend region in providers.tf and the region
+# passed to the ECR push commands in outputs.tf.
+region = "YOUR_REGION"
+
+# VPC CIDR. Doubles as the intra-VPC SSH source range, so widening it widens
+# who can SSH between nodes.
+vpc_cidr = "YOUR_VPC_CIDR"
+
+# Single public subnet. /24 leaves room to grow without resizing.
+public_subnet_cidr = "YOUR_PUBLIC_SUBNET_CIDR"
+
+# EC2 instance type. Must be large enough to build both Node images on the box
+# (npm ci + next build). t3.medium is the practical minimum; see docs/COST.md.
+instance_type = "YOUR_INSTANCE_TYPE"
+
+# Prefix for every Name tag, the security group and the key pair.
+project = "YOUR_PROJECT_NAME"
+
+# ECR repository namespace and name. Together they form the repo path
+# "<namespace>/<name>". See docs/ARCHITECTURE.md § ECR.
+ecr_namespace       = "YOUR_ECR_NAMESPACE"
+ecr_repository_name = "YOUR_ECR_REPOSITORY_NAME"
+
+# Login user on the instance. Must match the AMI:
+#   ubuntu    → Canonical Ubuntu AMIs (what this stack uses)
+#   ec2-user  → Amazon Linux AMIs
+ssh_user = "YOUR_SSH_USER"
+
+# ─── Public hostname, TLS and DuckDNS ────────────────────────────────────────
+
+# The hostname nginx serves and certbot certifies. Must resolve to the
+# instance's public IP for the ACME HTTP-01 challenge to succeed.
+duckdns_domain = "your-subdomain.duckdns.org"
+
+# Optional: DuckDNS API token. When set, setup-docker.sh points the DuckDNS
+# record at the instance automatically before requesting the certificate. When
+# empty, the script prints the update URL and waits for you to do it, and still
+# brings the app up over HTTP. Obtain it from https://www.duckdns.org.
+duckdns_token = ""
+
+# Contact email for Let's Encrypt expiry notices. Optional; when empty certbot
+# registers without an email.
+letsencrypt_email = ""
+
+# ─── Application source ──────────────────────────────────────────────────────
+
+# The app source is never vendored into this repository. It lives in the local
+# Application/ tree (Backend/ZeetaFin-BE and Frontend/ZeetaFin-FE) and
+# setup-docker.sh ships it to the host. Bump this string to force a re-upload
+# and rebuild after editing the application (see docs/DEPLOYMENT.md).
+app_source_revision = "1"
+
+# ─── Optional key paths ───────────────────────────────────────────────────────
+
+# Public key uploaded to the EC2 key pair. Must exist before `terraform plan`.
+# NOTE: the private key must NOT have a passphrase — setup-docker.sh cannot
+# answer a prompt.
+public_key_file  = "~/.ssh/id_ed25519.pub"
+
+# Matching private key. Used only by the local-exec provisioner, never uploaded
+# to AWS and never stored in Terraform state.
+private_key_file = "~/.ssh/id_ed25519"
+
+# ─── For reference: the defaults these override ──────────────────────────────
+#
+# region               (no default — required)
+# vpc_cidr             (no default — required)
+# public_subnet_cidr   (no default — required)
+# instance_type        (no default — required)
+# project              (no default — required)
+# ecr_namespace        (no default — required)
+# ecr_repository_name  (no default — required)
+# ssh_user             (no default — required)
+# duckdns_domain       (no default — required)
+# duckdns_token        = ""
+# letsencrypt_email    = ""
+# app_source_revision  = "1"
+# public_key_file      = "~/.ssh/id_ed25519.pub"
+# private_key_file     = "~/.ssh/id_ed25519"
+#
+# remote_state/ takes no variables; its bucket name and region are literals in
+# remote_state/main.tf and match the backend block in providers.tf by hand.

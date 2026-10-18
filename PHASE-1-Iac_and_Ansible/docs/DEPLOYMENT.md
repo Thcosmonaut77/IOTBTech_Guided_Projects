@@ -9,7 +9,7 @@ with the expected output at every stage and a diagnosis for every failure.
 - [Phase 2 — Configure the root module](#phase-2--configure-the-root-module)
 - [Phase 3 — Plan](#phase-3--plan)
 - [Phase 4 — Apply](#phase-4--apply)
-- [Phase 5 — Configure the workers with Ansible](#phase-5--configure-the-workers-with-ansible)
+- [Phase 5 — Configure the worker with Ansible](#phase-5--configure-the-worker-with-ansible)
 - [Phase 6 — Verification](#phase-6--verification)
 - [Manual invocation of setup-ansible.sh](#manual-invocation-of-setup-ansiblesh)
 - [Redeploying / updating](#redeploying--updating)
@@ -179,8 +179,9 @@ Terraform used the selected providers to generate the following execution plan.
 Plan: 4 to add, 0 to change, 0 to destroy.
 ```
 
-> The bucket name is fixed at `${var.project}-terraform-state`, so two deployments with the
-> same `project` value in the same account collide. An unused `random_id.bucket_suffix`
+> The bucket name is the hard-coded literal `cloud77-terraform-state`, so a second
+> deployment — in this account or anyone else's — collides. It is not derived from
+> `project`, and a `backend` block cannot read `var.*` anyway. An unused `random_id.bucket_suffix`
 > previously suggested this was handled; it was not, and it has been removed. See
 > [KI-10](KNOWN-ISSUES.md#ki-10) for the corrected fix if you want a unique name.
 
@@ -196,7 +197,7 @@ aws_s3_bucket.tf_state: Creation complete after 3s
 aws_s3_bucket_public_access_block.tf_state: Creating...
 ...
 
-Apply complete! Resources: 5 added, 0 changed, 0 destroyed.
+Apply complete! Resources: 4 added, 0 changed, 0 destroyed.
 
 Outputs:
 

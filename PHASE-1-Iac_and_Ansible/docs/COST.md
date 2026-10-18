@@ -240,9 +240,9 @@ ssh -i ~/.ssh/id_ed25519 ubuntu@$MASTER 'cd ~/ansible && ansible-playbook docker
 ```
 
 You cannot derive instance IDs from `terraform output` — it exposes public IPs, not IDs.
-Query by `Name` tag instead. The playbook re-run is needed because Docker is enabled at
-boot but the group membership from the original run is what grants non-root `docker`
-access, and a stop/start cycle is a good moment to confirm it.
+Query by `Name` tag instead. The playbook re-run is a convergence check rather than a
+repair: Docker is `enabled` at boot and the nginx container carries
+`restart_policy: unless-stopped`, so both come back on their own after a stop/start.
 
 ### 3. Schedule destruction — saves ≈ $27/mo
 

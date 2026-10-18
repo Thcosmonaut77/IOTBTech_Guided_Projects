@@ -504,7 +504,7 @@ find . -name 'id_*' -not -path './.git/*'
 git diff --cached | grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}'
 ```
 
-**Additionally, before publishing:** review all five files in `screenshots/`. They are
+**Additionally, before publishing:** review all three files in `screenshots/`. They are
 terminal captures of a real deployment and are the most likely place for a public IP,
 account ID, instance ID, IAM user name or `$HOME` path to be published. This is the one
 item in this document that requires your judgement rather than a command.
@@ -779,7 +779,7 @@ Ordered by value per unit of effort.
 | 5 | Pass the key path directly instead of base64 | S8 |
 | 6 | Add explicit `root_block_device { encrypted = true }` | S13 |
 | 7 | ~~Replace `StrictHostKeyChecking=no` with `accept-new`~~ — **already done in this repository**; still TOFU, so the remaining work is distributing host keys | **S1** |
-| 8 | Rename the hard-coded bucket reference in `providers.tf` to match `remote_state` | [KI-10](KNOWN-ISSUES.md#ki-10) |
+| 8 | Give the state bucket a genuinely unique name (interpolate a real `random_id` suffix), so a second deployment does not collide | [KI-10](KNOWN-ISSUES.md#ki-10) |
 
 ### Phase 2 — An hour, no cost
 
@@ -861,7 +861,8 @@ git diff --cached | grep -nE '(arn:aws|[0-9]{12})'
 git ls-files | grep -c 'tfstate$'    # must be 0
 ```
 
-**Screenshots.** `screenshots/Screenshot 1.png` … `Screenshot 5.png` are terminal captures
+**Screenshots.** `screenshots/Container.png`, `screenshots/Playbook.png` and
+`screenshots/Terraform apply.png` are terminal captures
 from a real deployment and are the highest-risk item in this repository. Review each for
 public IPs, instance IDs, account IDs, ARNs, IAM identities, `$HOME` paths, Terraform
 output values and shell history. Redact, or remove them from the public branch and keep

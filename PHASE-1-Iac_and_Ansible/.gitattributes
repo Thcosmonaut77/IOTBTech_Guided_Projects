@@ -38,10 +38,6 @@ setup-ansible.sh text eol=lf
 # GitHub Actions. The runner always uses LF; a CRLF workflow file fails to parse.
 .github/** text eol=lf
 
-# Makefiles. A trailing \r after a recipe line makes the shell try to run "echo hello\r".
-Makefile  text eol=lf
-*.mk      text eol=lf
-
 # Documentation and metadata.
 *.md      text eol=lf
 LICENSE   text eol=lf

@@ -545,10 +545,10 @@ your state may fail. Take a state backup first:
 aws s3 cp s3://cloud77-terraform-state/terraform.tfstate ~/backups/tfstate-pre-upgrade.json
 ```
 
-> Do not upgrade Terraform past 1.10 on this configuration until
-> [KI-01](KNOWN-ISSUES.md#ki-01) is fixed — the declared `required_version` currently
-> permits versions that cannot parse `use_lockfile`, and Terraform will refuse with a
-> message that does not point at the real cause.
+> Use Terraform **≥ 1.10** for this configuration — `use_lockfile` requires it, and an older
+> release (1.5–1.9) fails at `init` with an error that does not point at the real cause. The
+> declared `required_version = ">= 1.5"` does not enforce that floor, so until
+> [KI-01](KNOWN-ISSUES.md#ki-01) is fixed you have to check the version yourself.
 
 ---
 
@@ -761,7 +761,7 @@ active lock is how two applies corrupt state concurrently.
 | Monthly | Review AMI drift and consider pinning | `terraform plan` |
 | Monthly | Verify state versioning still enabled | `aws s3api get-bucket-versioning` |
 | Quarterly | Rotate the SSH key | See [Rotating the SSH key](#rotating-the-ssh-key) |
-| Quarterly | Re-run `terraform validate` and `fmt` against current tooling | `make validate` |
+| Quarterly | Re-run `terraform validate` and `fmt` against current tooling | `terraform -chdir=infrastructure validate` |
 | Quarterly | Review [KNOWN-ISSUES.md](KNOWN-ISSUES.md) and close what's fixed | — |
 | On demand | Destroy if not in use for 30+ days | See [COST.md](COST.md) |
 

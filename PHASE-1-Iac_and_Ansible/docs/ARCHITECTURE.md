@@ -82,8 +82,8 @@ graph LR
 **Consequences of this topology**
 
 - The main root module lives in `infrastructure/`. Every command below is written from the
-  repository root as `terraform -chdir=infrastructure …`; `terraform fmt -recursive` and
-  `make check` work from the root because both modules are covered by the same recursion.
+  repository root as `terraform -chdir=infrastructure …`; `terraform fmt -recursive` works
+  from the root because both modules are covered by the same recursion.
 - The two modules have independent lifecycles and independent state. `terraform destroy`
   in the main module **will not** delete the state bucket — good, since destroying the
   bucket while it is your backend corrupts your own state.
@@ -337,7 +337,7 @@ graph LR
     end
     subgraph A["docker.yml knows about"]
         A1["Docker installed"]
-        A2["docker group membership"]
+        A2["nginx container on :80"]
         A3["Service enabled at boot"]
         A4["✔ verifiable via ansible all -m ping / idempotency"]
     end

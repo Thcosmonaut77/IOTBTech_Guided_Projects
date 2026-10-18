@@ -268,7 +268,6 @@ one-time bootstrap and is documented rather than hidden.
 ├── README.md                        ← you are here
 ├── LICENSE                          MIT
 ├── CONTRIBUTING.md
-├── Makefile                         convenience targets (fmt/validate/plan/apply)
 ├── .gitignore                       hardened — see KNOWN-ISSUES § KI-02
 ├── .gitattributes                   forces LF so the shell script survives CI
 │
@@ -291,7 +290,7 @@ one-time bootstrap and is documented rather than hidden.
 │   ├── main.tf                      S3 bucket, versioning, SSE, public-access-block
 │   └── outputs.tf                   bucket_name, region (both hard-coded in main.tf)
 │
-├── docs/                            ~5,300 lines of design rationale and runbooks
+├── docs/                            ~5,550 lines of design rationale and runbooks
 │   ├── ARCHITECTURE.md              resource-by-resource design rationale
 │   ├── DEPLOYMENT.md                step-by-step deploy with expected output
 │   ├── OPERATIONS.md                runbook: day-2, scaling, teardown, rotation
@@ -303,7 +302,7 @@ one-time bootstrap and is documented rather than hidden.
 └── screenshots/                     terminal captures from the working deployment
 ```
 
-33 tracked files. Nothing under `.terraform/`, no `terraform.tfvars`, no state, no keys.
+28 tracked files. Nothing under `.terraform/`, no `terraform.tfvars`, no state, no keys.
 
 > **The main root module lives in `infrastructure/`.** Every command in these docs is written
 > from the repository root using `terraform -chdir=infrastructure …`, which works with
@@ -313,7 +312,7 @@ one-time bootstrap and is documented rather than hidden.
 > from `infrastructure/`.
 
 **There is no CI.** Every check documented here is a local command you run yourself — see
-[`make check`](#verification) and [CONTRIBUTING.md § Before you open a PR](CONTRIBUTING.md#before-you-open-a-pr).
+[Verification](#verification) and [CONTRIBUTING.md § Before you open a PR](CONTRIBUTING.md#before-you-open-a-pr).
 
 ---
 
@@ -329,7 +328,6 @@ one-time bootstrap and is documented rather than hidden.
 | GNU bash | ≥ 4.4 | `setup-ansible.sh` needs `mapfile`, `declare -A`-free arrays and `${var,,}` (bash 4+). |
 | OpenSSH client | ≥ 8.0 | `ssh`, `scp`, `ssh-keygen`. |
 | Python 3 | ≥ 3.8 | Only needed on the **local** machine, and only when invoking `setup-ansible.sh` manually without `-m`/worker IPs. |
-| `make` | optional | Only if you use the `Makefile` shortcuts. |
 
 **Generate the SSH key if you have not already:**
 
@@ -526,7 +524,7 @@ ansible-playbook docker.yml --check --diff  # dry run: should report no changes
 ansible-playbook docker.yml                 # apply
 ansible worker-01 -m shell -a "systemctl is-active docker"   # active
 ansible worker-01 -m shell -a "docker --version"
-ansible worker-01 -m shell -a "id -nG ubuntu | tr ' ' '\n' | grep -x docker"
+ansible worker-01 -m shell -a "docker ps --filter name=nginx --format '{{.Names}} {{.Status}} {{.Ports}}'"
 tail -50 ~/ansible/ansible.log
 ```
 
@@ -577,12 +575,12 @@ the public IPs entirely — see [docs/COST.md](docs/COST.md#optimisation-options
 
 ## Evidence
 
-`screenshots/` contains five terminal captures (`Screenshot 1.png` … `Screenshot 5.png`)
-taken during the working deployment. They are included as supporting evidence that the
-pipeline described above was executed end to end rather than only planned. They are
-referenced here without annotation; the maintainer has deliberately not captioned them in
-this README to avoid publishing assertions about image content that has not been verified
-alongside the code.
+`screenshots/` contains three terminal captures (`Container.png`, `Playbook.png`,
+`Terraform apply.png`) taken during the working deployment. They are included as supporting
+evidence that the pipeline described above was executed end to end rather than only planned.
+They are referenced here without annotation; the maintainer has deliberately not captioned
+them in this README to avoid publishing assertions about image content that has not been
+verified alongside the code.
 
 > ⚠️ **Before publishing:** review every screenshot for public IPs, instance IDs, account
 > IDs, ARNs, IAM user names, `$HOME` paths and Terraform output values. Redact as needed.
@@ -595,14 +593,14 @@ alongside the code.
 
 | Document | Lines | Read it when you want to… |
 |---|---:|---|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 508 | understand every resource, why it exists, and what was deliberately left out |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | 853 | deploy from scratch, with expected output and failure diagnosis at each step |
-| [docs/OPERATIONS.md](docs/OPERATIONS.md) | 705 | scale the fleet, rotate keys, rebuild state, or tear everything down |
-| [docs/SECURITY.md](docs/SECURITY.md) | 881 | assess the threat model, 15 findings and the remediation plan |
-| [docs/KNOWN-ISSUES.md](docs/KNOWN-ISSUES.md) | 1383 | see what is broken, how badly, and how to fix it |
-| [docs/COST.md](docs/COST.md) | 418 | model cost, optimise it, or decide when to destroy |
-| [docs/REVIEW-CHECKLIST.md](docs/REVIEW-CHECKLIST.md) | 475 | conduct a structured appraisal of this repo |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | 365 | contribute a fix, or add a new known issue |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 536 | understand every resource, why it exists, and what was deliberately left out |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | 859 | deploy from scratch, with expected output and failure diagnosis at each step |
+| [docs/OPERATIONS.md](docs/OPERATIONS.md) | 776 | scale the fleet, rotate keys, rebuild state, or tear everything down |
+| [docs/SECURITY.md](docs/SECURITY.md) | 936 | assess the threat model, 15 findings and the remediation plan |
+| [docs/KNOWN-ISSUES.md](docs/KNOWN-ISSUES.md) | 1524 | see what is broken, how badly, and how to fix it |
+| [docs/COST.md](docs/COST.md) | 422 | model cost, optimise it, or decide when to destroy |
+| [docs/REVIEW-CHECKLIST.md](docs/REVIEW-CHECKLIST.md) | 505 | conduct a structured appraisal of this repo |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | 366 | contribute a fix, or add a new known issue |
 
 Line counts are approximate and drift as issues get fixed; the headings are the reliable
 part.
@@ -624,10 +622,10 @@ Still open, and the ones that matter most before you build on this:
 
 1. **[KI-19](docs/KNOWN-ISSUES.md#ki-19)** — both instances share one security group, so the key copied to the master is valid against either node *and* reachable from the operator `/32`. It is a fleet-wide, internet-exposed credential, and master compromise is fleet compromise. Accepted and documented here; the one-line fix is to split the SG by role.
 2. **[KI-01](docs/KNOWN-ISSUES.md#ki-01)** — `required_version = ">= 1.5"` is wrong; `use_lockfile` needs ≥ 1.10. The declared constraint permits versions that cannot parse this config.
-3. **[KI-06](docs/KNOWN-ISSUES.md#ki-06)** — `remote_state/` has no backend, so its state lives in one git-ignored local file. Lose it and you re-import five resources by hand.
+3. **[KI-06](docs/KNOWN-ISSUES.md#ki-06)** — `remote_state/` has no backend, so its state lives in one git-ignored local file. Lose it and you re-import four resources by hand.
 4. **[KI-08](docs/KNOWN-ISSUES.md#ki-08)** — SSH host-key verification is TOFU on both the operator and Ansible paths. Better than `StrictHostKeyChecking=no`, but not authoritative.
 5. **[KI-14](docs/KNOWN-ISSUES.md#ki-14)** — IMDSv1 is not enforced and the root volume has no explicit encryption. Both are cheap in-place updates.
-6. **[KI-10](docs/KNOWN-ISSUES.md#ki-10)** — the state bucket name is fixed, so two deployments with the same `project` value collide globally.
+6. **[KI-10](docs/KNOWN-ISSUES.md#ki-10)** — the state bucket is the fixed literal `cloud77-terraform-state`, so a second deployment collides globally whatever `project` is set to.
 
 Recently fixed here: [KI-02](docs/KNOWN-ISSUES.md#ki-02) (`.gitignore`),
 [KI-03](docs/KNOWN-ISSUES.md#ki-03), [KI-04](docs/KNOWN-ISSUES.md#ki-04),

@@ -135,9 +135,11 @@ All four original items have been resolved; confirm rather than assume.
 
 - [ ] Does `ansible.tf` pass worker **private** IPs while `outputs.tf` says to feed the
       inventory **public** IPs? (Yes. See [KI-05](KNOWN-ISSUES.md#ki-05).)
-- [ ] Does the bucket name in `providers.tf` match what `remote_state/` creates? (They agree
-      by coincidence, not by wiring — `"cloud77-terraform-state"` literal vs
-      `"${var.project}-terraform-state"` with `project = "cloud77"`.)
+- [ ] Does the bucket name in `providers.tf` match what `remote_state/` creates? (They match
+      because the same literal, `"cloud77-terraform-state"`, is written out twice — in
+      `providers.tf`'s `backend` block and in `remote_state/main.tf`. Neither is derived
+      from `var.project`, and a `backend` block cannot read `var.*`, so nothing wires them
+      together. See [KI-10](KNOWN-ISSUES.md#ki-10).)
 - [ ] Do the outputs' `description` fields state what the values are actually for?
 
 ### 2e — Failure behaviour
@@ -226,8 +228,8 @@ Read `setup-ansible.sh` and answer:
 - [ ] Does it depend on non-portable tools? (`mapfile`, `base64 -d`, `mktemp`, `seq`,
       `python3`. All present in a default GNU/Linux and Git Bash, except `python3` in Git
       Bash, which is why the fallback path can fail there.)
-- [ ] Is there a lint gate? (`make check` runs `shellcheck` locally, but there is no CI. See
-      the [Makefile](../Makefile).)
+- [ ] Is there a lint gate? (`shellcheck` and `terraform fmt -check` run locally, but there is
+      no CI. See [CONTRIBUTING.md § Checks](../CONTRIBUTING.md#checks).)
 - [ ] Is the heredoc for `ansible.cfg` and the inventory quoted (`<<'EOF'`)? (Yes — so `${{ }}`
       Ansible templating is not expanded by Bash. Correct and important.)
 - [ ] Does the script copy the tracked `docker.yml` rather than carrying its own copy? (Yes —

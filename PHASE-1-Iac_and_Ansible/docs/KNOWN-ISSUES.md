@@ -484,7 +484,7 @@ configuration and its public-access-block settings.
 
 **Impact.**
 
-- If the file is lost and the bucket still exists, you must `terraform import` all five
+- If the file is lost and the bucket still exists, you must `terraform import` all four
   resources by hand before the next `terraform apply` can plan a change.
 - The file is git-ignored (correctly), so it exists in exactly one place.
 - It contains no secrets, but it is still the only source of truth for the bucket's
@@ -1151,7 +1151,7 @@ check "instance_replacement_is_intentional" {
 
 **Caveat.** `prevent_destroy` on the bucket means `terraform destroy` in `remote_state/`
 requires editing the block first. That is the point — but document it in
-[OPERATIONS.md § Teardown](DEPLOYMENT.md#2-destroy-the-state-bucket-optional) so the
+[OPERATIONS.md § Teardown](OPERATIONS.md#teardown) so the
 next operator is not surprised.
 
 ---
@@ -1307,8 +1307,8 @@ terraform fmt -recursive
 ```
 
 **Why it mattered beyond tidiness.** `fmt -check` is the cheapest possible gate and the one
-every Terraform repository is expected to have. There is no CI here, so `make fmt-check` is
-the only thing standing in for it.
+every Terraform repository is expected to have. There is no CI here, so
+`terraform fmt -check -recursive` is the only thing standing in for it.
 
 **Verification**
 

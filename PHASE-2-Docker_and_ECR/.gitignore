@@ -1,0 +1,66 @@
+# ── Terraform state and variables — never commit ─────────────────────────────
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+terraform.tfvars
+*.auto.tfvars
+override.tf
+override_tofu.tf
+*_override.tf
+*_override.tofu.tf
+
+# Provider cache. NOTE: `.terraform*` would also match .terraform.lock.hcl, which
+# MUST be committed, hence the explicit negation below.
+.terraform/
+.terraform.tfstate.lock.info
+.terraform.tfstate.backup
+
+.terraform.lock.hcl
+
+# ─── Secrets and keys ────────────────────────────────────────────────────────
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+id_rsa*
+id_ed25519*
+known_hosts
+known_hosts.old
+.aws/
+.awscli/
+.netrc
+.env
+.env.*
+!.env.example
+!Application/.env.example
+!Application/Backend/*/.env.example
+!Application/Frontend/**/.env.example
+
+# ─── SSH public keys ────────────────────
+*.pub
+!*.pub.example
+
+# ─── Application source ──────────────────────────────────────────────────────
+# The ZeetaFin app source is tracked in this repository (decision D3 in
+# docs/ARCHITECTURE.md § Application delivery) and is uploaded to the host by
+# setup-docker.sh — no clone, no deploy keys. Runtime env files stay out: the
+# trees ship .env.example only, and each tree's own .gitignore still applies.
+
+
+# ─── OS and editor noise ──────────────────────────────────────────────────────
+.DS_Store
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.swp
+*~
+*.bak
+*.orig
+*.rej
+.idea/
+.vscode/
+!.vscode/extensions.json
