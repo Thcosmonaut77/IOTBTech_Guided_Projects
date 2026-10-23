@@ -170,7 +170,6 @@ jobs:
     if: ${{ always() && needs.test.result == 'success' && (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: production
     env:
       IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
 
