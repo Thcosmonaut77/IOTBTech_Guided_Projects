@@ -1,0 +1,259 @@
+name: Build, Push to ECR and Deploy to EC2
+
+# Standalone pipeline for a repository whose root is PHASE-3-CICD_Pipeline.
+# It builds the application from Application/ and deploys it to the Phase 3
+# EC2 host. ../../.github/workflows/phase3-cicd.yml is the combined-repository
+# mirror with a path prefix; keep the two in sync.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Optional image tag to deploy. Defaults to the workflow SHA."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: zeetafin-production-deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+  ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+
+jobs:
+  test:
+    name: Test and typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out the application
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            Application/Backend/ZeetaFin-BE/package-lock.json
+            Application/Frontend/ZeetaFin-FE/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: Application/Backend/ZeetaFin-BE
+        run: npm ci
+
+      - name: Run backend tests
+        working-directory: Application/Backend/ZeetaFin-BE
+        run: npm test
+
+      - name: Install frontend dependencies
+        working-directory: Application/Frontend/ZeetaFin-FE
+        run: npm ci
+
+      - name: Typecheck the frontend
+        working-directory: Application/Frontend/ZeetaFin-FE
+        run: npm test
+
+  build-and-push:
+    name: Build images and push to ECR
+    needs: test
+    # A manual run with image_tag set is a redeploy of an image that already
+    # exists in ECR (a rollback or a hotfix), so it must not rebuild and
+    # overwrite that tag with the current source.
+    if: ${{ github.event_name == 'push' || !github.event.inputs.image_tag }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      - name: Check out the application
+        uses: actions/checkout@v4
+
+      - name: Authenticate to AWS with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: gha-zeetafin-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Images are loaded locally first so Trivy can gate the push. Nothing is
+      # published when a CRITICAL vulnerability is found.
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./Application/Backend/ZeetaFin-BE
+          file: ./Application/Backend/ZeetaFin-BE/Dockerfile
+          push: false
+          load: true
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:backend-${{ env.IMAGE_TAG }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Scan backend image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:backend-${{ env.IMAGE_TAG }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: CRITICAL
+          vuln-type: os,library
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./Application/Frontend/ZeetaFin-FE
+          file: ./Application/Frontend/ZeetaFin-FE/Dockerfile
+          push: false
+          load: true
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL != '' && secrets.NEXT_PUBLIC_API_URL || '/api' }}
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:frontend-${{ env.IMAGE_TAG }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      - name: Scan frontend image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:frontend-${{ env.IMAGE_TAG }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: CRITICAL
+          vuln-type: os,library
+
+      - name: Push the scanned images
+        run: |
+          registry="${{ steps.login-ecr.outputs.registry }}"
+          repository="${ECR_REPOSITORY}"
+          for component in backend frontend; do
+            docker tag "${registry}/${repository}:${component}-${IMAGE_TAG}" \
+              "${registry}/${repository}:${component}-latest"
+            docker push "${registry}/${repository}:${component}-${IMAGE_TAG}"
+            docker push "${registry}/${repository}:${component}-latest"
+          done
+
+      - name: Publish image summary
+        run: |
+          {
+            echo "## Images pushed"
+            echo ""
+            echo "- \`${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:backend-${{ env.IMAGE_TAG }}\`"
+            echo "- \`${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:frontend-${{ env.IMAGE_TAG }}\`"
+            echo ""
+            echo "Both images passed the Trivy CRITICAL gate before the push."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deploy to EC2
+    needs: [test, build-and-push]
+    # Run after a successful test and build, and also when the build job was
+    # skipped because image_tag selected an existing image.
+    if: ${{ always() && needs.test.result == 'success' && (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    env:
+      IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
+
+    steps:
+      - name: Check out the deploy script
+        uses: actions/checkout@v4
+
+      - name: Validate the image tag
+        env:
+          IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
+        run: |
+          case "$IMAGE_TAG" in
+            ''|*[!A-Za-z0-9._-]*)
+              echo "Invalid image tag: $IMAGE_TAG" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Install the SSH key and pinned host key
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST_KEY: ${{ secrets.EC2_HOST_KEY }}
+        run: |
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$EC2_SSH_KEY" > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          if [ -z "$EC2_HOST_KEY" ]; then
+            echo "EC2_HOST_KEY is not set. Run: ssh-keyscan -H $EC2_HOST" >&2
+            exit 1
+          fi
+          printf '%s\n' "$EC2_HOST_KEY" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+          if ! ssh-keygen -F "$EC2_HOST" -f "$HOME/.ssh/known_hosts" >/dev/null; then
+            echo "EC2_HOST_KEY does not contain a key for $EC2_HOST" >&2
+            exit 1
+          fi
+
+      - name: Upload the deploy script
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          scp -i "$HOME/.ssh/id_ed25519" \
+            Application/deploy.sh \
+            "$EC2_USER@$EC2_HOST:~/zeetafin/deploy.sh"
+
+      - name: Deploy the new images
+        id: deploy
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          ssh -i "$HOME/.ssh/id_ed25519" "$EC2_USER@$EC2_HOST" \
+            "cd ~/zeetafin && AWS_REGION='$AWS_REGION' ECR_REGISTRY='$ECR_REGISTRY' ECR_REPOSITORY='$ECR_REPOSITORY' IMAGE_TAG='$IMAGE_TAG' bash deploy.sh"
+
+      - name: Verify the application is reachable
+        id: verify
+        env:
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
+        run: |
+          APP_BASE_URL="${APP_BASE_URL%/}"
+          curl --fail --silent --show-error \
+            --retry 12 --retry-delay 5 --retry-connrefused \
+            "$APP_BASE_URL/api/docs" > /dev/null
+          curl --fail --silent --show-error \
+            --retry 12 --retry-delay 5 --retry-connrefused \
+            "$APP_BASE_URL/" > /dev/null
+          echo "API and frontend responded at $APP_BASE_URL"
+
+      - name: Record the last known-good tag
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          ssh -i "$HOME/.ssh/id_ed25519" "$EC2_USER@$EC2_HOST" \
+            "printf '%s\n' '$IMAGE_TAG' > ~/zeetafin/.last_good_tag"
+
+      - name: Roll back to the last known-good image
+        if: ${{ failure() && steps.deploy.outcome == 'success' && steps.verify.outcome == 'failure' }}
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          ssh -i "$HOME/.ssh/id_ed25519" "$EC2_USER@$EC2_HOST" \
+            "cd ~/zeetafin && AWS_REGION='$AWS_REGION' ECR_REGISTRY='$ECR_REGISTRY' ECR_REPOSITORY='$ECR_REPOSITORY' bash deploy.sh --rollback"

@@ -1,0 +1,93 @@
+# Copy to terraform.tfvars and edit. NEVER commit terraform.tfvars.
+#
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# See variables.tf for the authoritative list and README.md § Configuration
+# Reference for the full table.
+
+# ─── Required ─────────────────────────────────────────────────────────────────
+
+# AWS region. Must match the backend region in providers.tf and the AWS_REGION
+# GitHub secret.
+region = "eu-north-1"
+
+# VPC CIDR and the single public subnet. A /16 VPC with a /24 subnet is plenty.
+vpc_cidr           = "10.0.0.0/16"
+public_subnet_cidr = "10.0.1.0/24"
+
+# EC2 instance type. The host only pulls and runs images now (CI does the
+# build), so t3.small is often enough; t3.medium is the safe default.
+instance_type = "t3.medium"
+
+# Prefix for every Name tag, the security group, key pair and IAM role.
+# Use a value that does not collide with Phase 1 or Phase 2 resources.
+project = "DockerCI"
+
+# ECR repository namespace and name. Together they form "<namespace>/<name>".
+# Keep this value out of the way of the Phase 2 repository if both stacks run
+# in the same account.
+ecr_namespace       = "7"
+ecr_repository_name = "zeetafin-ci"
+
+# Login user on the instance. Must match the AMI:
+#   ubuntu    → Canonical Ubuntu AMIs (what this stack uses)
+#   ec2-user  → Amazon Linux AMIs
+ssh_user = "ubuntu"
+
+# GitHub OIDC trust. Only this repository and branch may assume the CI role.
+# Change these if you fork the project or deploy from another branch.
+github_repository = "Thcosmonaut77/IOTBTech_Guided_Projects"
+github_branch     = "main"
+
+# SSH sources allowed in addition to the operator's current public IP /32.
+# GitHub-hosted runners use dynamic egress addresses, so the example opens 22
+# to the internet. Replace this with a self-hosted runner CIDR, or remove it
+# and use SSM, before treating the stack as production. See docs/SECURITY.md.
+ssh_ingress_cidrs = ["0.0.0.0/0"]
+
+# ─── Public hostname, TLS and DuckDNS ────────────────────────────────────────
+
+# The hostname nginx serves and certbot certifies. Must resolve to the
+# instance's public IP for the ACME HTTP-01 challenge to succeed.
+duckdns_domain = "zeetafin-ci.duckdns.org"
+
+# Optional: DuckDNS API token. When set, setup-docker.sh points the DuckDNS
+# record at the instance automatically before requesting the certificate. When
+# empty, point the record yourself and re-run the bootstrap.
+duckdns_token = ""
+
+# Contact email for Let's Encrypt expiry notices. Optional.
+letsencrypt_email = ""
+
+# ─── Optional key paths ───────────────────────────────────────────────────────
+
+# Public key uploaded to the EC2 key pair. Must exist before `terraform plan`.
+# NOTE: the private key must NOT have a passphrase — setup-docker.sh cannot
+# answer a prompt, and GitHub Actions uses the same key non-interactively.
+public_key_file = "~/.ssh/id_ed25519.pub"
+
+# Matching private key. Used only by the local-exec provisioner, never uploaded
+# to AWS and never stored in Terraform state.
+private_key_file = "~/.ssh/id_ed25519"
+
+# ─── For reference: the defaults these override ──────────────────────────────
+#
+# region               (no default — required)
+# vpc_cidr             (no default — required)
+# public_subnet_cidr   (no default — required)
+# instance_type        (no default — required)
+# project              (no default — required)
+# ecr_namespace        (no default — required)
+# ecr_repository_name  (no default — required)
+# ssh_user             = "ubuntu"
+# github_repository    = "Thcosmonaut77/IOTBTech_Guided_Projects"
+# github_branch        = "main"
+# ssh_ingress_cidrs    = []
+# duckdns_domain       = "zeetafin.duckdns.org"
+# duckdns_token        = ""
+# letsencrypt_email    = ""
+# public_key_file      = "~/.ssh/id_ed25519.pub"
+# private_key_file     = "~/.ssh/id_ed25519"
+#
+# remote_state/ takes no variables; its bucket name and region are literals in
+# remote_state/main.tf and match the backend block in providers.tf by hand.

@@ -1,0 +1,63 @@
+# ── Terraform state and variables — never commit ─────────────────────────────
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+terraform.tfvars
+*.auto.tfvars
+override.tf
+override_tofu.tf
+*_override.tf
+*_override.tofu.tf
+
+# Provider cache. The lock file (.terraform.lock.hcl) is committed on purpose.
+.terraform/
+.terraform.tfstate.lock.info
+.terraform.tfstate.backup
+
+# ─── Secrets and keys ────────────────────────────────────────────────────────
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+id_rsa*
+id_ed25519*
+known_hosts
+known_hosts.old
+.aws/
+.awscli/
+.netrc
+.env
+.env.*
+!.env.example
+!Application/.env.example
+!Application/Backend/*/.env.example
+!Application/Frontend/**/.env.example
+
+# ─── SSH public keys ────────────────────
+*.pub
+!*.pub.example
+
+# ─── Application source ──────────────────────────────────────────────────────
+# The ZeetaFin app source is tracked so GitHub Actions can build it. The host
+# receives only deploy.sh and nginx.cfg; images arrive through ECR. Runtime env
+# files stay out: the trees ship .env.example only, and each tree's own
+# .gitignore still applies.
+
+
+# ─── OS and editor noise ──────────────────────────────────────────────────────
+.DS_Store
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.swp
+*~
+*.bak
+*.orig
+*.rej
+.idea/
+.vscode/
+!.vscode/extensions.json
