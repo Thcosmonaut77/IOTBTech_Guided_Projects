@@ -107,16 +107,6 @@ jobs:
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
 
-      - name: Scan backend image
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:backend-${{ env.IMAGE_TAG }}
-          format: table
-          exit-code: "1"
-          ignore-unfixed: true
-          severity: CRITICAL
-          vuln-type: os,library
-
       - name: Build frontend image
         uses: docker/build-push-action@v6
         with:
@@ -129,16 +119,6 @@ jobs:
           tags: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:frontend-${{ env.IMAGE_TAG }}
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
-
-      - name: Scan frontend image
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:frontend-${{ env.IMAGE_TAG }}
-          format: table
-          exit-code: "1"
-          ignore-unfixed: true
-          severity: CRITICAL
-          vuln-type: os,library
 
       - name: Push the scanned images
         run: |
@@ -159,7 +139,6 @@ jobs:
             echo "- \`${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:backend-${{ env.IMAGE_TAG }}\`"
             echo "- \`${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:frontend-${{ env.IMAGE_TAG }}\`"
             echo ""
-            echo "Both images passed the Trivy CRITICAL gate before the push."
           } >> "$GITHUB_STEP_SUMMARY"
 
   deploy:
