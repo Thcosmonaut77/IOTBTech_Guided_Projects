@@ -82,8 +82,8 @@ const UP: string[] = [
 
   `CREATE TABLE IF NOT EXISTS "journal_entry_lines" (
     "id" uuid NOT NULL DEFAULT gen_random_uuid(),
-    "journalEntryId" character varying NOT NULL,
-    "accountId" character varying NOT NULL,
+    "journalEntryId" uuid NOT NULL,
+    "accountId" uuid NOT NULL,
     "debit" numeric(15,2) NOT NULL,
     "credit" numeric(15,2) NOT NULL,
     "description" text,
@@ -132,7 +132,7 @@ const UP: string[] = [
   `CREATE TABLE IF NOT EXISTS "ap_invoices" (
     "id" uuid NOT NULL DEFAULT gen_random_uuid(),
     "invoiceNumber" character varying NOT NULL,
-    "vendorId" character varying NOT NULL,
+    "vendorId" uuid NOT NULL,
     "invoiceDate" date NOT NULL,
     "dueDate" date NOT NULL,
     "amount" numeric(15,2) NOT NULL,
@@ -152,7 +152,7 @@ const UP: string[] = [
 
   `CREATE TABLE IF NOT EXISTS "ap_payments" (
     "id" uuid NOT NULL DEFAULT gen_random_uuid(),
-    "invoiceId" character varying NOT NULL,
+    "invoiceId" uuid NOT NULL,
     "paymentDate" date NOT NULL,
     "amount" numeric(15,2) NOT NULL,
     "referenceNumber" character varying,
@@ -188,7 +188,7 @@ const UP: string[] = [
   `CREATE TABLE IF NOT EXISTS "ar_invoices" (
     "id" uuid NOT NULL DEFAULT gen_random_uuid(),
     "invoiceNumber" character varying NOT NULL,
-    "customerId" character varying NOT NULL,
+    "customerId" uuid NOT NULL,
     "invoiceDate" date NOT NULL,
     "dueDate" date NOT NULL,
     "amount" numeric(15,2) NOT NULL,
@@ -207,7 +207,7 @@ const UP: string[] = [
   `CREATE TABLE IF NOT EXISTS "ar_credit_notes" (
     "id" uuid NOT NULL DEFAULT gen_random_uuid(),
     "creditNoteNumber" character varying NOT NULL,
-    "invoiceId" character varying NOT NULL,
+    "invoiceId" uuid NOT NULL,
     "creditNoteDate" date NOT NULL,
     "amount" numeric(15,2) NOT NULL,
     "reason" text,
@@ -220,7 +220,7 @@ const UP: string[] = [
 
   `CREATE TABLE IF NOT EXISTS "ar_receipts" (
     "id" uuid NOT NULL DEFAULT gen_random_uuid(),
-    "invoiceId" character varying NOT NULL,
+    "invoiceId" uuid NOT NULL,
     "receiptDate" date NOT NULL,
     "amount" numeric(15,2) NOT NULL,
     "referenceNumber" character varying,
